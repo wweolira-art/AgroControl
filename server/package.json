@@ -1,0 +1,12 @@
+{
+  "name": "agrocontrol-api",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node --watch index.ts",
+    "public": "node api-public.mjs"
+  },
+  "dependencies": {
+    "oracledb": "^7.0.1"
+  }
+}
