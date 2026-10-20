@@ -1,0 +1,90 @@
+{
+  "expo": {
+    "name": "Elejotaagro",
+    "slug": "agrocontrol",
+    "owner": "rayhiran",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "scheme": "agrocontrol",
+    "userInterfaceStyle": "light",
+    "platforms": [
+      "android",
+      "ios",
+      "web"
+    ],
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.agrocontrol.app",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSLocationWhenInUseUsageDescription": "O Elejotaagro usa sua localização GPS para identificar a fazenda e o talhão em que você está."
+      }
+    },
+    "android": {
+      "package": "com.agrocontrol.app",
+      "adaptiveIcon": {
+        "backgroundColor": "#143A2B",
+        "foregroundImage": "./assets/images/android-icon-foreground.png",
+        "backgroundImage": "./assets/images/android-icon-background.png",
+        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION"
+      ]
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "single",
+      "favicon": "./assets/images/favicon.png",
+      "name": "Elejotaagro",
+      "shortName": "Elejotaagro",
+      "themeColor": "#143A2B",
+      "backgroundColor": "#143A2B"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "O Elejotaagro usa sua localização GPS para identificar a fazenda e o talhão em que você está."
+        }
+      ],
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/images/splash-icon.png",
+          "resizeMode": "contain",
+          "backgroundColor": "#143A2B"
+        }
+      ],
+      "expo-secure-store",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "usesCleartextTraffic": true
+          }
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "router": {},
+      "oracleConnectString": "0.tcp.sa.ngrok.io:15786/CSORCL",
+      "oracleUser": "CONSULTA",
+      "ordsInsumosUrl": "https://g58645a2c384a96-bd1.adb.sa-saopaulo-1.oraclecloudapps.com/ords/admin/insumos",
+      "apiUrl": "https://hyperkeratotic-nondenunciative-matthias.ngrok-free.dev",
+      "ordsConexaoUrl": "https://g58645a2c384a96-bd1.adb.sa-saopaulo-1.oraclecloudapps.com/ords/admin/conexao_banco",
+      "eas": {
+        "projectId": "fce5659c-02a3-4196-8261-dc29b03c24be"
+      }
+    }
+  }
+}

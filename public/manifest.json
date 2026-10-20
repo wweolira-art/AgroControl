@@ -1,0 +1,19 @@
+{
+  "name": "Elejotaagro",
+  "short_name": "Elejotaagro",
+  "description": "Mapas, GPS, cadastros e apontamentos agrícolas.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#143A2B",
+  "theme_color": "#143A2B",
+  "icons": [
+    {
+      "src": "/assets/images/icon.png",
+      "sizes": "1024x1024",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
