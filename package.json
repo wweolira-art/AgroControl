@@ -1,0 +1,13 @@
+{
+  "name": "agrobi",
+  "private": true,
+  "scripts": {
+    "dev": "npm run dev --prefix AgroBi",
+    "start": "npm run start --prefix AgroBi",
+    "android": "npm run android --prefix AgroBi",
+    "ios": "npm run ios --prefix AgroBi",
+    "web": "npm run web --prefix AgroBi",
+    "api:mock": "npm run api:mock --prefix AgroBi",
+    "api:public": "npm run api:public --prefix AgroBi"
+  }
+}
