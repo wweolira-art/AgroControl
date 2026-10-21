@@ -11,19 +11,25 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useAuth } from '../src/auth/AuthProvider';
+import { useDeviceAccess } from '../src/auth/DeviceAccessProvider';
+import type { AbaDispositivo } from '../src/config/device-tabs';
+import { ABAS_OBRIGATORIAS } from '../src/config/device-tabs';
 import { Header } from '../src/components/Header';
 import { Logo } from '../src/components/Logo';
 import { carregarPerdasLocal, carregarRascunhosLocal } from '../src/services/apontamento-local';
 import { colors } from '../src/theme/colors';
 
 interface MenuCardProps {
+  aba?: AbaDispositivo;
   titulo: string;
   descricao: string;
   detalhe?: string;
   onPress: () => void;
 }
 
-function MenuCard({ titulo, descricao, detalhe, onPress }: MenuCardProps) {
+function MenuCard({ aba, titulo, descricao, detalhe, onPress }: MenuCardProps) {
+  const { pode } = useDeviceAccess();
+  if (aba && !pode(aba)) return null;
   return (
     <Pressable onPress={onPress} style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}>
       <Text style={styles.cardTitulo}>{titulo}</Text>
@@ -36,6 +42,7 @@ function MenuCard({ titulo, descricao, detalhe, onPress }: MenuCardProps) {
 export default function Index() {
   const router = useRouter();
   const { usuario, pronto, isAdmin, sair } = useAuth();
+  const { email, acesso, pronto: acessoPronto, erro: erroAcesso, atualizar } = useDeviceAccess();
   const [salvos, setSalvos] = useState(0);
 
   useFocusEffect(
@@ -80,35 +87,51 @@ export default function Index() {
       <ScrollView contentContainerStyle={styles.content}>
         <Logo tamanho={148} />
         <Text style={styles.intro}>Abra o mapa, os cadastros ou os apontamentos salvos neste aparelho.</Text>
+        <Text selectable style={styles.intro}>Liberações de acesso: {email}</Text>
+        {!acessoPronto && <ActivityIndicator color={colors.accent} />}
+        {!!erroAcesso && <Pressable onPress={() => void atualizar()}><Text style={styles.intro}>{erroAcesso}{'\n'}Toque para tentar novamente.</Text></Pressable>}
+        {acessoPronto && !erroAcesso && !acesso?.abas.some(aba => !ABAS_OBRIGATORIAS.includes(aba)) && <Text style={styles.intro}>Cadastros e Apontamentos salvos estão disponíveis. Para acessar outras abas, solicite a liberação ao administrador.</Text>}
 
         <MenuCard
           titulo="Mapa"
+          aba="mapa"
           descricao="Talhões, GPS e lançamento no campo."
           onPress={() => router.push('/mapa')}
         />
         <MenuCard
           titulo="Cadastros"
+          aba="cadastros"
           descricao="Importar fazendas, talhões, operações, materiais e funcionários."
           onPress={() => router.push('/importar-cadastro-apontamento')}
         />
         <MenuCard
           titulo="Insumos"
+          aba="insumos"
           descricao="Preencher e gravar no celular. O envio ao Oracle é na lista de salvos."
           onPress={() => router.push('/apontamento')}
         />
         <MenuCard
+          titulo="Mão de obra"
+          aba="mao-de-obra"
+          descricao="Lançar produção por funcionário, fazenda, talhão e serviço."
+          onPress={() => router.push('/mao-de-obra' as Href)}
+        />
+        <MenuCard
           titulo="Apontamentos salvos"
+          aba="salvos"
           descricao="Pendentes neste aparelho. Envie ao Oracle daqui."
           detalhe={salvos === 1 ? '1 pendente neste aparelho' : `${salvos} pendentes neste aparelho`}
           onPress={() => router.push('/apontamentos-locais')}
         />
         <MenuCard
           titulo="Perdas de colheita"
+          aba="perdas"
           descricao="Lançar amostra manual ou mecanizada, com os tipos de perda de cada corte."
           onPress={() => router.push('/perdas-colheita')}
         />
         <MenuCard
           titulo="Análise biométrica"
+          aba="biometria"
           descricao="Consultar lançamentos, itens e pontos da análise biométrica via ORDS."
           onPress={() => router.push('/analise-biometrica' as Href)}
         />
@@ -116,18 +139,22 @@ export default function Index() {
         {isAdmin ? (
           <>
             <Text style={styles.secao}>Administração</Text>
+            <MenuCard titulo="Acesso por e-mail" descricao="Escolher quais abas cada usuário pode acessar." onPress={() => router.push('/acesso-dispositivos' as Href)} />
             <MenuCard
               titulo="Talhões"
+              aba="talhoes-admin"
               descricao="Cadastrar, importar e desenhar polígonos."
               onPress={() => router.push('/mapa-admin')}
             />
             <MenuCard
               titulo="Usuários"
+              aba="usuarios"
               descricao="Cadastrar operadores e administradores."
               onPress={() => router.push('/usuarios')}
             />
             <MenuCard
               titulo="Conexão Oracle"
+              aba="conexao"
               descricao="CSCLIENTE no celular (INSERT). CONSULTA importa no PC."
               onPress={() => router.push('/conexao-oracle')}
             />

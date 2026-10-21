@@ -216,7 +216,8 @@ export async function carregarCadastrosLocal(): Promise<CadastrosApontamento | n
         materiais: Array.isArray(lido.materiais) ? lido.materiais : [],
         operacoes: Array.isArray(lido.operacoes) ? lido.operacoes : [],
         funcionarios: Array.isArray(lido.funcionarios) ? lido.funcionarios : [],
-        meiosAplicacao: Array.isArray(lido.meiosAplicacao) ? lido.meiosAplicacao : [],
+        turmas: Array.isArray(lido.turmas) ? lido.turmas : undefined,
+      meiosAplicacao: Array.isArray(lido.meiosAplicacao) ? lido.meiosAplicacao : [],
         tiposOperacao:
           Array.isArray(lido.tiposOperacao) && lido.tiposOperacao.length > 0
             ? lido.tiposOperacao
@@ -244,6 +245,7 @@ export async function carregarCadastrosLocal(): Promise<CadastrosApontamento | n
       materiais: Array.isArray(lido.materiais) ? lido.materiais : [],
       operacoes: Array.isArray(lido.operacoes) ? lido.operacoes : [],
       funcionarios: Array.isArray(lido.funcionarios) ? lido.funcionarios : [],
+      turmas: Array.isArray(lido.turmas) ? lido.turmas : undefined,
       meiosAplicacao: Array.isArray(lido.meiosAplicacao) ? lido.meiosAplicacao : [],
       tiposOperacao:
         Array.isArray(lido.tiposOperacao) && lido.tiposOperacao.length > 0

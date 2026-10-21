@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { useDeviceAccess } from '../src/auth/DeviceAccessProvider';
 import { ActionButton } from '../src/components/ActionButton';
 import { Header } from '../src/components/Header';
 import { env } from '../src/config/env';
@@ -30,6 +31,7 @@ import type { CadastrosApontamento } from '../src/types/apontamento';
 
 export default function ImportarCadastroApontamentoScreen() {
   const router = useRouter();
+  const { pode } = useDeviceAccess();
   const [cadastros, setCadastros] = useState<CadastrosApontamento | null>(null);
   const [carregando, setCarregando] = useState(true);
   const [importando, setImportando] = useState(false);
@@ -68,7 +70,7 @@ export default function ImportarCadastroApontamentoScreen() {
   const importar = () => {
     Alert.alert(
       'Importar cadastros',
-      'Baixa fazendas, talhões, materiais da família 44, operações, funcionários e meios de aplicação do Oracle e grava no celular para uso offline.',
+      'Baixa fazendas, talhões, materiais da família 44, operações, funcionários e meios de aplicação do Oracle, além das turmas para quem tem acesso à Mão de Obra, e grava no celular para uso offline.',
       [
         { text: 'Cancelar', style: 'cancel' },
         {
@@ -78,7 +80,7 @@ export default function ImportarCadastroApontamentoScreen() {
             setErro(null);
             setSucesso(null);
             try {
-              const resultado = await importarCadastrosOracle();
+              const resultado = await importarCadastrosOracle({ incluirTurmas: pode('mao-de-obra') });
               setCadastros(resultado.cadastros);
               setSucesso(
                 `Cadastros importados da API · ${resumoCadastros(resultado.cadastros)}`,
@@ -127,7 +129,7 @@ export default function ImportarCadastroApontamentoScreen() {
           <Text style={styles.cardTitulo}>AgroControl-api-public</Text>
           <Text style={styles.cardLinha}>Em uso: {urlApi || env.apiUrl || 'nenhuma'}</Text>
           <Text style={styles.cardSub}>
-            O banco é acessado só nesse PC. Lá: AgroControl-API.cmd ou npm run public. Padrão: {env.apiUrl}
+            No PC servidor: npm run api:public na raiz do AgroControl ou npm run public na pasta server. Cole a URL pública exibida no terminal.
           </Text>
           <TextInput
             style={styles.input}

@@ -9,6 +9,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { setTimeout as sleep } from 'node:timers/promises';
+import { urlHttpsDaApi } from './ngrok-tunnel.mjs';
 
 const SERVER_DIR = path.dirname(fileURLToPath(import.meta.url));
 const ENV_PATH = path.join(SERVER_DIR, '.env');
@@ -85,8 +86,7 @@ async function listarTunnels() {
 }
 
 function urlHttps(tunnels) {
-  const https = tunnels.find((item) => String(item.public_url ?? '').startsWith('https://'));
-  return https?.public_url ? String(https.public_url).replace(/\/$/, '') : null;
+  return urlHttpsDaApi(tunnels, API_PORT);
 }
 
 async function criarTunelNoAgente() {
@@ -267,7 +267,8 @@ const url = await obterUrlNgrok();
 const saudePublica = await fetch(`${url}/health`, {
   headers: { 'ngrok-skip-browser-warning': 'true' },
 });
-if (!saudePublica.ok) {
+const saude = await saudePublica.json().catch(() => null);
+if (!saudePublica.ok || saude?.ok !== true || saude?.servico !== 'Elejotaagro API') {
   throw new Error(`A URL pública respondeu ${saudePublica.status} em ${url}/health`);
 }
 

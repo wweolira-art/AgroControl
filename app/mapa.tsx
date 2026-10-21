@@ -6,6 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Header } from '../src/components/Header';
 import { LocationPanel } from '../src/components/LocationPanel';
 import { useAuth } from '../src/auth/AuthProvider';
+import { useDeviceAccess } from '../src/auth/DeviceAccessProvider';
 import { useTalhaoDetection } from '../src/hooks/useTalhaoDetection';
 import { useUserLocation } from '../src/hooks/useUserLocation';
 import { GeoJsonMap } from '../src/maps/GeoJsonMap';
@@ -23,6 +24,7 @@ const REGIAO_INICIAL: MapRegion = { latitude: -9.85, longitude: -36.05, latitude
 export default function MapaScreen() {
   const router = useRouter();
   const { usuario, pronto, isAdmin, sair } = useAuth();
+  const { pode } = useDeviceAccess();
   const mapRef = useRef<MapCameraHandle>(null);
   const [collection, setCollection] = useState<FeatureCollection>(EMPTY_MAP);
   const [carregandoMapa, setCarregandoMapa] = useState(true);
@@ -205,12 +207,12 @@ export default function MapaScreen() {
           <Pressable style={styles.fab} onPress={verTalhoes}>
             <Text style={styles.fabLabel}>Ver talhões</Text>
           </Pressable>
-          {isAdmin ? (
+          {isAdmin && pode('talhoes-admin') ? (
             <Pressable style={styles.fab} onPress={() => router.push('/mapa-admin')}>
               <Text style={styles.fabLabel}>Talhões</Text>
             </Pressable>
           ) : null}
-          {isAdmin && selectedTalhao ? (
+          {isAdmin && pode('talhoes-admin') && selectedTalhao ? (
             <Pressable style={styles.fab} onPress={abrirDesenho}>
               <Text style={styles.fabLabel}>Desenhar</Text>
             </Pressable>
@@ -249,7 +251,7 @@ export default function MapaScreen() {
         origemConsulta={origemConsulta}
         isAdmin={isAdmin}
         onMinhaLocalizacao={centralizarUsuario}
-        onApontamento={abrirApontamento}
+        onApontamento={pode('insumos') ? abrirApontamento : undefined}
         onDesenhar={abrirDesenho}
       />
     </SafeAreaView>

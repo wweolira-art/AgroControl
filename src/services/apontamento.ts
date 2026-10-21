@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { listarTurmasMaoDeObra } from './mao-de-obra';
 
 import {
   TIPOS_OPERACAO_ERP,
@@ -18,6 +19,7 @@ import { obterUrlApiCustos } from './oracle-conexao';
 
 function normalizarCadastros(data: Partial<CadastrosApontamento>): CadastrosApontamento {
   return {
+    turmas: Array.isArray(data.turmas) ? data.turmas : undefined,
     fazendas: Array.isArray(data.fazendas) ? data.fazendas : [],
     talhoes: Array.isArray(data.talhoes) ? data.talhoes : [],
     materiais: Array.isArray(data.materiais) ? data.materiais : [],
@@ -63,8 +65,12 @@ export interface ResultadoImportacaoCadastros {
   detalhe: string;
 }
 
-export async function importarCadastrosOracle(): Promise<ResultadoImportacaoCadastros> {
+export async function importarCadastrosOracle(opcoes: { incluirTurmas?: boolean } = {}): Promise<ResultadoImportacaoCadastros> {
   const viaApi = await importarCadastrosViaApi();
+  const local = await carregarCadastrosLocal();
+  viaApi.dados.turmas = opcoes.incluirTurmas
+    ? await listarTurmasMaoDeObra()
+    : viaApi.dados.turmas ?? local?.turmas;
   await salvarCadastrosLocal(viaApi.dados);
   return {
     cadastros: viaApi.dados,

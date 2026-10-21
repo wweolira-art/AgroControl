@@ -13,6 +13,8 @@ import http from 'node:http';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createAuth, createAuthGuard } from './auth.ts';
+import { createEmailAccessGuard, createEmailAccessStore, DEFAULT_ACCESS_URL } from './email-access.ts';
+import { gravarMaoDeObra, listarServicosMaoDeObra, listarTurmasMaoDeObra } from './mao-de-obra.ts';
 
 const SERVER_DIR = path.dirname(fileURLToPath(import.meta.url));
 
@@ -36,7 +38,7 @@ const authGuard = createAuthGuard(createAuth({
   url: process.env.ORDS_AUTH_USUARIOS_URL ?? '',
   token: process.env.ORDS_AUTH_TOKEN ?? '',
   allowLegacy: process.env.AUTH_ALLOW_LEGACY_SHA256 === 'true',
-}));
+}), createEmailAccessGuard(createEmailAccessStore({ url: process.env.ORDS_ACESSO_ABA_URL || DEFAULT_ACCESS_URL, token: process.env.ORDS_ACESSO_ABA_TOKEN || '' })));
 
 const PORT = Number(process.env.PORT ?? process.env.API_PORT ?? 3001);
 const ORDS_MAPA_TALHAO_URL = (
@@ -271,7 +273,7 @@ function entradaOracleDoCorpo(corpo: Record<string, unknown>): OracleConfigEntra
 const server = http.createServer(async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, ngrok-skip-browser-warning');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, ngrok-skip-browser-warning, X-Device-ID');
 
   if (req.method === 'OPTIONS') {
     res.writeHead(204);
@@ -389,6 +391,50 @@ const server = http.createServer(async (req, res) => {
         res.writeHead(500, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ mensagem }));
       });
+    return;
+  }
+
+  if (req.method === 'GET' && url.pathname === '/api/apontamento/mao-de-obra/turmas') {
+    try {
+      const turmas = await listarTurmasMaoDeObra();
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(turmas));
+    } catch (erro) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ mensagem: mensagemErroOracle(erro) }));
+    }
+    return;
+  }
+
+  if (req.method === 'GET' && url.pathname === '/api/apontamento/mao-de-obra/servicos') {
+    try {
+      const servicos = await listarServicosMaoDeObra(Number(url.searchParams.get('codFazenda')), url.searchParams.get('data') ?? '');
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(servicos));
+    } catch (erro) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ mensagem: mensagemErroOracle(erro) }));
+    }
+    return;
+  }
+
+  if (req.method === 'POST' && url.pathname === '/api/apontamento/mao-de-obra') {
+    try {
+      const corpo = await lerJson(req);
+      const resultado = await gravarMaoDeObra({
+        codAgenciador: Number(corpo.codAgenciador), codGrupoempresaTurma: Number(corpo.codGrupoempresaTurma),
+        codFuncionario: Number(corpo.codFuncionario), codFazenda: Number(corpo.codFazenda),
+        codTalhao: Number(corpo.codTalhao), codOperacao: Number(corpo.codOperacao),
+        quantidade: Number(corpo.quantidade),
+        dataApontamento: typeof corpo.dataApontamento === 'string' ? corpo.dataApontamento : '',
+        observacao: typeof corpo.observacao === 'string' ? corpo.observacao : undefined,
+      });
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(resultado));
+    } catch (erro) {
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ mensagem: mensagemErroOracle(erro) }));
+    }
     return;
   }
 
@@ -520,6 +566,7 @@ const server = http.createServer(async (req, res) => {
 
 function iniciarApi(porta: number, tentouAlternativa = false) {
   const aoErro = (erro: NodeJS.ErrnoException) => {
+    server.off('listening', aoIniciar);
     if (erro.code === 'EADDRINUSE' && !tentouAlternativa) {
       const alternativa = porta + 1;
       console.warn(`Porta ${porta} ocupada. Subindo a Elejotaagro em ${alternativa}.`);
@@ -529,8 +576,7 @@ function iniciarApi(porta: number, tentouAlternativa = false) {
     }
     console.error(erro);
   };
-  server.on('error', aoErro);
-  server.listen(porta, '0.0.0.0', () => {
+  const aoIniciar = () => {
     server.off('error', aoErro);
     console.log(`Elejotaagro API em http://0.0.0.0:${porta}`);
     console.log('GET /health  GET /api/config  GET /api/oracle-config  (mostra CONSULTA vs CSCLIENTE, sem senha)');
@@ -542,7 +588,10 @@ function iniciarApi(porta: number, tentouAlternativa = false) {
     console.log('GET /api/oracle-config  PUT /api/oracle-config  POST /api/oracle-config/test');
     console.log('GET /api/apontamento/cadastros  POST /api/apontamento');
     console.log('GET /api/perdas/cadastros  POST /api/perdas');
-  });
+  };
+  server.on('error', aoErro);
+  server.once('listening', aoIniciar);
+  server.listen(porta, '0.0.0.0');
 }
 
 iniciarApi(PORT);

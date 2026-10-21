@@ -74,12 +74,12 @@ export function createAuth(options: {
   const digest = (value: string) => createHash('sha256').update(value).digest('hex');
 
   async function ords(path = '', method = 'GET', body?: unknown) {
-    if (!options.token || !options.url.startsWith('https://')) {
-      throw new AuthError(503, 'Configure ORDS_AUTH_USUARIOS_URL (HTTPS) e ORDS_AUTH_TOKEN no servidor.');
+    if (!options.url.startsWith('https://')) {
+      throw new AuthError(503, 'Configure ORDS_AUTH_USUARIOS_URL (HTTPS) no servidor.');
     }
     const response = await request(`${options.url.replace(/\/$/, '')}/${path}`, {
       method,
-      headers: { Authorization: `Bearer ${options.token}`, 'Content-Type': 'application/json' },
+      headers: { ...(options.token ? { Authorization: `Bearer ${options.token}` } : {}), 'Content-Type': 'application/json' },
       ...(body === undefined ? {} : { body: JSON.stringify(body) }),
       signal: AbortSignal.timeout(20_000),
       redirect: 'error',
@@ -214,7 +214,7 @@ export async function readAuthBody(req: IncomingMessage): Promise<Record<string,
 }
 
 /** Toda rota /api exige sessão; permissões administrativas são conferidas no servidor. */
-export function createAuthGuard(auth: ReturnType<typeof createAuth>) {
+export function createAuthGuard(auth: ReturnType<typeof createAuth>, afterAuthentication?: (req: IncomingMessage, res: ServerResponse, pathname: string, user: ReturnType<typeof publicUser>) => Promise<boolean>) {
   return async (req: IncomingMessage, res: ServerResponse, pathname: string): Promise<boolean> => {
     const json = (status: number, value: unknown) => {
       res.writeHead(status, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
@@ -230,6 +230,7 @@ export function createAuthGuard(auth: ReturnType<typeof createAuth>) {
       const user = await auth.authenticate(req.headers.authorization);
       const adminRoute = pathname === '/api/usuarios' || pathname.startsWith('/api/oracle-config') || pathname === '/api/config' || pathname === '/api/irrigacao/insert-test';
       if (adminRoute && user.perfil !== 'admin') throw new AuthError(403, 'Acesso permitido somente ao administrador.');
+      if (afterAuthentication && await afterAuthentication(req, res, pathname, user)) return true;
       if (pathname === '/api/auth/logout' && req.method === 'POST') {
         auth.logout(req.headers.authorization);
         json(200, { ok: true });

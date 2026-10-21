@@ -15,6 +15,8 @@ const ENDPOINTS = {
   lancamentos: `${BASE_URL}/lancamento_analisebiometrica/`,
   itens: `${BASE_URL}/itens_analisebiometrica/`,
   pontos: `${BASE_URL}/pontos_analisebiometrica/`,
+  motivosTch: `${BASE_URL}/motivostch_analisebiometrica/`,
+  motivosTalhao: `${BASE_URL}/analisebiometrica_motivos/`,
 } as const;
 
 function extrairItems(data: unknown): RegistroAnaliseBiometrica[] {
@@ -117,9 +119,10 @@ function linkSelf(row: RegistroAnaliseBiometrica): string {
 
 export async function consultarCadastrosAnaliseBiometrica(): Promise<CadastrosAnaliseBiometrica> {
   try {
-    const [itensRows, pontosRows] = await Promise.all([
+    const [itensRows, pontosRows, motivosRows] = await Promise.all([
       consultarLista(ENDPOINTS.itens),
       consultarLista(ENDPOINTS.pontos),
+      consultarLista(ENDPOINTS.motivosTch),
     ]);
     const itens: ItemAnaliseBiometrica[] = itensRows
       .map((row) => ({
@@ -137,6 +140,10 @@ export async function consultarCadastrosAnaliseBiometrica(): Promise<CadastrosAn
     return {
       itens,
       pontos,
+      motivosTch: motivosRows.map(row => ({
+        codMotivo: numeroCampo(row, 'cod_motivo'),
+        descricao: textoCampo(row, 'descricao'),
+      })).filter(row => Number.isSafeInteger(row.codMotivo) && row.codMotivo > 0 && row.descricao),
       importadoEm: new Date().toISOString(),
     };
   } catch (erro) {
@@ -147,7 +154,9 @@ export async function consultarCadastrosAnaliseBiometrica(): Promise<CadastrosAn
 export async function consultarLancamentosAnaliseBiometrica(): Promise<LancamentoAnaliseBiometrica[]> {
   try {
     const rows = await consultarLista(ENDPOINTS.lancamentos);
+    const motivos = await consultarMotivosTalhao();
     return rows.map((row) => ({
+      codigosMotivoTch: codigosMotivoTchTalhao(motivos, { data: textoCampo(row, 'data'), codFazenda: numeroCampo(row, 'cod_fazenda'), codTalhao: numeroCampo(row, 'cod_talhao') }),
       selfUrl: linkSelf(row),
       data: textoCampo(row, 'data'),
       codPonto: numeroCampo(row, 'cod_ponto', 'codPonto'),
@@ -157,13 +166,14 @@ export async function consultarLancamentosAnaliseBiometrica(): Promise<Lancament
       variedade: textoCampo(row, 'variedade'),
       valor: numeroCampo(row, 'valor'),
       usuario: textoCampo(row, 'usuario'),
+
     }));
   } catch (erro) {
     throw mensagemErro(erro);
   }
 }
 
-export async function enviarLancamentoAnaliseBiometrica(
+async function enviarLancamentoAnaliseBiometrica(
   entrada: LancamentoAnaliseBiometricaEntrada,
 ): Promise<RegistroAnaliseBiometrica> {
   try {
@@ -190,11 +200,73 @@ export async function enviarLancamentoAnaliseBiometrica(
 export async function enviarLancamentosAnaliseBiometrica(
   entradas: LancamentoAnaliseBiometricaEntrada[],
 ): Promise<RegistroAnaliseBiometrica[]> {
+  const grupos = new Map<string, LancamentoAnaliseBiometricaEntrada[]>();
+  for (const entrada of entradas) {
+    const key = chaveMotivoTch(entrada);
+    grupos.set(key, [...(grupos.get(key) ?? []), entrada]);
+  }
+  const pendentes: { contexto: LancamentoAnaliseBiometricaEntrada; codigos: number[] }[] = [];
+  for (const grupo of grupos.values()) {
+    const contexto = grupo[0];
+    const codigos = [...new Set(grupo.flatMap(row => row.codigosMotivoTch ?? []))];
+    if (codigos.some(codigo => !Number.isSafeInteger(codigo) || codigo <= 0)) throw new Error('Selecione um código válido de motivo TCH.');
+    if (!codigos.length) continue;
+    // Confere disponibilidade e todos os códigos antes de gravar medições.
+    const existentes = await consultarMotivosTalhao(contexto, true);
+    const anteriores = codigosMotivoTchTalhao(existentes, contexto);
+    const novos = codigos.filter(codigo => !anteriores.includes(codigo));
+    for (const codigo of novos) {
+      const motivos = await consultarLista(`${ENDPOINTS.motivosTch}?q=${encodeURIComponent(JSON.stringify({ cod_motivo: codigo }))}`);
+      if (!motivos.some(row => numeroCampo(row, 'cod_motivo') === codigo)) throw new Error('O motivo TCH selecionado não existe mais no cadastro. Recarregue os cadastros.');
+    }
+    pendentes.push({ contexto, codigos: novos });
+  }
+  for (const { contexto, codigos } of pendentes) {
+    for (const codigo of codigos) {
+      try {
+        await axios.post(ENDPOINTS.motivosTalhao, {
+          data: contexto.data.trim(), cod_fazenda: contexto.codFazenda,
+          cod_talhao: contexto.codTalhao, cod_motivo: codigo,
+        }, { timeout: 60_000 });
+      } catch (erro) {
+        // Outro dispositivo pode ter incluído o mesmo código entre o GET e POST.
+        const atuais = await consultarMotivosTalhao(contexto, true);
+        if (!codigosMotivoTchTalhao(atuais, contexto).includes(codigo)) throw mensagemErro(erro);
+      }
+    }
+  }
   const enviados: RegistroAnaliseBiometrica[] = [];
   for (const entrada of entradas) {
+    // Os motivos pertencem ao talhão/data, sem duplicar valores ou códigos nos itens.
     enviados.push(await enviarLancamentoAnaliseBiometrica(entrada));
   }
   return enviados;
+}
+
+export async function consultarMotivosTalhao(contexto?: ContextoMotivoTch, obrigatorio = false) {
+  const filtro = contexto ? `?q=${encodeURIComponent(JSON.stringify({ data: contexto.data.trim(), cod_fazenda: contexto.codFazenda, cod_talhao: contexto.codTalhao }))}` : '';
+  try {
+    const rows = await consultarLista(`${ENDPOINTS.motivosTalhao}${filtro}`);
+    return rows.map(row => ({ data: textoCampo(row, 'data'), codFazenda: numeroCampo(row, 'cod_fazenda'), codTalhao: numeroCampo(row, 'cod_talhao'), codigosMotivoTch: [numeroCampo(row, 'cod_motivo')] }));
+  } catch (erro) {
+    if (axios.isAxiosError(erro) && erro.response?.status === 404) {
+      if (!obrigatorio) return [];
+      throw new Error('Ative a tabela de múltiplos motivos no banco: execute scripts/habilitar-biometria-multiplos-motivos.sql no schema ADMIN. Nenhuma medição foi enviada.');
+    }
+    throw mensagemErro(erro);
+  }
+}
+
+type ContextoMotivoTch = { data: string; codFazenda: number; codTalhao: number };
+export function chaveMotivoTch(contexto: ContextoMotivoTch): string {
+  return JSON.stringify([contexto.data.trim(), contexto.codFazenda, contexto.codTalhao]);
+}
+export function codigosMotivoTchTalhao(
+  lancamentos: (ContextoMotivoTch & { codigosMotivoTch?: number[] })[], contexto: ContextoMotivoTch,
+): number[] {
+  const key = chaveMotivoTch(contexto);
+  return [...new Set(lancamentos.filter(row => chaveMotivoTch(row) === key).flatMap(row => row.codigosMotivoTch ?? [])
+    .filter((code): code is number => code != null && Number.isSafeInteger(code) && code > 0))];
 }
 
 export async function excluirLancamentoAnaliseBiometrica(selfUrl: string): Promise<void> {

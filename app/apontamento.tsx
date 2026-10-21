@@ -14,6 +14,7 @@ import {
   type LayoutChangeEvent,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useDeviceAccess } from '../src/auth/DeviceAccessProvider';
 
 import { ActionButton } from '../src/components/ActionButton';
 import { Header } from '../src/components/Header';
@@ -234,6 +235,7 @@ function Seletor<T>({
 }
 
 export default function ApontamentoScreen() {
+  const { pode } = useDeviceAccess();
   const router = useRouter();
   const params = useLocalSearchParams<{
     codigoFazenda?: string;
@@ -624,7 +626,7 @@ export default function ApontamentoScreen() {
       'O apontamento ficou pendente neste aparelho. Envie ao Oracle na tela Apontamentos salvos.',
       [
         { text: 'Continuar lançando' },
-        { text: 'Ver pendentes', onPress: () => router.push('/apontamentos-locais') },
+        ...(pode('salvos') ? [{ text: 'Ver pendentes', onPress: () => router.push('/apontamentos-locais') }] : []),
       ],
     );
   };
@@ -643,12 +645,12 @@ export default function ApontamentoScreen() {
           <Text style={styles.backText}>← Voltar</Text>
         </Pressable>
 
-        <Pressable onPress={() => router.push('/importar-cadastro-apontamento')} style={styles.link}>
+        {pode('cadastros') && <Pressable onPress={() => router.push('/importar-cadastro-apontamento')} style={styles.link}>
           <Text style={styles.linkText}>Cadastros · {resumoCadastros(cadastros)}</Text>
-        </Pressable>
-        <Pressable onPress={() => router.push('/apontamentos-locais')} style={styles.link}>
+        </Pressable>}
+        {pode('salvos') && <Pressable onPress={() => router.push('/apontamentos-locais')} style={styles.link}>
           <Text style={styles.linkText}>Apontamentos salvos no celular</Text>
-        </Pressable>
+        </Pressable>}
 
         {carregando ? (
           <View style={styles.carregandoBox}>

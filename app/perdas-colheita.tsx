@@ -13,6 +13,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useDeviceAccess } from '../src/auth/DeviceAccessProvider';
 
 import { ActionButton } from '../src/components/ActionButton';
 import { Header } from '../src/components/Header';
@@ -201,6 +202,7 @@ function Seletor<T>({
 }
 
 export default function PerdasColheitaScreen() {
+  const { pode } = useDeviceAccess();
   const router = useRouter();
   const { coordenada } = useUserLocation();
   const [cadastros, setCadastros] = useState<CadastrosPerda | null>(null);
@@ -357,7 +359,7 @@ export default function PerdasColheitaScreen() {
                 'A perda ficou pendente neste aparelho. Envie ao Oracle na tela Apontamentos salvos.',
                 [
                   { text: 'Continuar lançando' },
-                  { text: 'Ver pendentes', onPress: () => router.push('/apontamentos-locais') },
+                  ...(pode('salvos') ? [{ text: 'Ver pendentes', onPress: () => router.push('/apontamentos-locais') }] : []),
                 ],
               );
               setQuantidades({});

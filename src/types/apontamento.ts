@@ -49,7 +49,10 @@ export const TIPOS_OPERACAO_ERP: TipoOperacaoCadastro[] = [
   { tipoOperacao: 'M', descricao: 'MECANIZADO' },
 ];
 
+export interface TurmaCadastro { codAgenciador: number; codGrupoempresa: number }
+
 export interface CadastrosApontamento {
+  turmas?: TurmaCadastro[];
   fazendas: FazendaCadastro[];
   talhoes: TalhaoCadastro[];
   materiais: MaterialCadastro[];

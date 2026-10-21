@@ -131,7 +131,20 @@ test('login rejeita JSON inválido e corpo excessivo', async () => {
   assert.equal((await route(guard, '/api/auth/login', { method: 'POST', body: 'x'.repeat(20_000) })).status, 413);
 });
 
-test('sem credenciais ORDS o login falha fechado e não consulta rede', async () => {
+test('sem URL ORDS o login falha fechado e não consulta rede', async () => {
   const auth = createAuth({ url: '', token: '', fetch: () => { throw new Error('não deveria executar'); } });
   await assert.rejects(auth.login('teste@example.com', password, 'test'), { status: 503 });
+});
+
+test('login consulta URL pública sem exigir token ORDS e valida a senha', async () => {
+  const senha_hash = await hashPassword(password);
+  const auth = createAuth({
+    url: 'https://ords.example.test/usuario', token: '',
+    fetch: async (_url, options) => {
+      assert.equal(options.headers.Authorization, undefined);
+      return { ok: true, status: 200, json: async () => ({ items: [{ id_usuario: 1, nome: 'Operador', email: 'operador@example.com', ativo: 1, perfil: 'operador', senha_hash }] }) };
+    },
+  });
+  assert.ok((await auth.login('operador@example.com', password, 'public')).token);
+  await assert.rejects(auth.login('operador@example.com', 'senha-incorreta', 'public'), { status: 401 });
 });

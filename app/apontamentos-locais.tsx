@@ -12,6 +12,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useAuth } from '../src/auth/AuthProvider';
+import { useDeviceAccess } from '../src/auth/DeviceAccessProvider';
 import { ActionButton } from '../src/components/ActionButton';
 import { Header } from '../src/components/Header';
 import { enviarApontamentoOracle, entradaOracleDoRascunho } from '../src/services/apontamento';
@@ -39,6 +40,7 @@ function dataBr(iso: string): string {
 export default function ApontamentosLocaisScreen() {
   const router = useRouter();
   const { usuario } = useAuth();
+  const { pode } = useDeviceAccess();
   const [lista, setLista] = useState<ApontamentoRascunho[]>([]);
   const [perdas, setPerdas] = useState<PerdaRascunho[]>([]);
   const [carregando, setCarregando] = useState(true);
@@ -356,7 +358,7 @@ export default function ApontamentosLocaisScreen() {
                   loading={enviandoId === item.id}
                 />
               ) : null}
-              <ActionButton label="Alterar" variant="secondary" onPress={() => alterar(item)} disabled={ocupado} />
+              {pode('insumos') && <ActionButton label="Alterar" variant="secondary" onPress={() => alterar(item)} disabled={ocupado} />}
               <ActionButton
                 label="Excluir"
                 variant="ghost"
@@ -439,12 +441,12 @@ export default function ApontamentosLocaisScreen() {
               }
               loading={enviandoTodos}
             />
-            <ActionButton
+            {pode('insumos') && <ActionButton
               label="Insumos"
               variant="ghost"
               onPress={() => router.push('/apontamento')}
               disabled={ocupado}
-            />
+            />}
             <ActionButton
               label={`Limpar enviados (${totalEnviadosGeral})`}
               variant="danger"
@@ -453,7 +455,7 @@ export default function ApontamentosLocaisScreen() {
             />
           </View>
         ) : (
-          <ActionButton label="Ir para Insumos" onPress={() => router.push('/apontamento')} />
+          pode('insumos') ? <ActionButton label="Ir para Insumos" onPress={() => router.push('/apontamento')} /> : null
         )}
       </ScrollView>
     </SafeAreaView>

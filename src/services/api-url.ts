@@ -6,7 +6,7 @@ import { carregarSessao } from './session';
 const CHAVE_API_URL = 'elejotaagro.api.public.url';
 
 const MSG_SEM_URL =
-  'Não achou o AgroControl-api-public. No outro PC abra essa pasta e rode npm run public (ou AgroControl-API.cmd). O celular usa a URL HTTPS do ngrok, não a porta 3001 local.';
+  'Configure a URL da API em Cadastros. No PC servidor, execute npm run api:public na raiz do AgroControl ou npm run public dentro da pasta server e copie a URL pública exibida.';
 
 function urlValida(url: string): boolean {
   const limpa = url.replace(/\/$/, '');
@@ -71,7 +71,7 @@ export async function salvarUrlApiPublica(url: string): Promise<string> {
 }
 
 /**
- * URL da API REST. Prioridade: URL gravada no celular, depois .env, depois #API= na ORDS.
+ * URL da API REST. Prioridade: URL gravada no celular, depois #API= na ORDS, depois configuração do app.
  */
 export async function listarUrlsApiCandidatas(): Promise<string[]> {
   const { obterUrlApiCustos } = await import('./oracle-conexao');
@@ -108,10 +108,13 @@ export async function cabecalhosApiPublica(): Promise<Record<string, string>> {
 export function mensagemErroApi(erro: unknown, apiBase: string, fallback: string): Error {
   const axios = erro as { isAxiosError?: boolean; response?: { status?: number; data?: unknown }; code?: string; message?: string };
   const status = axios.response?.status;
-  if (status === 403) return new Error('Acesso permitido somente ao administrador.');
+  if (status === 403) {
+    const mensagem = (axios.response?.data as { mensagem?: string } | undefined)?.mensagem;
+    return new Error(mensagem || 'Acesso não permitido.');
+  }
   if (status === 404) {
     return new Error(
-      `A API não está nesse endereço (404): ${apiBase}. No outro PC rode AgroControl-API.cmd / npm run public e cole a URL em Cadastros.`,
+      `O endereço ${apiBase} respondeu 404. No PC servidor, execute npm run api:public na raiz do AgroControl (ou npm run public na pasta server). Confirme que a URL exibida abre /health e cole essa URL em Cadastros. Se /health funcionar, atualize a pasta server: a rota solicitada pode estar ausente nessa versão da API.`,
     );
   }
   if (status === 401) {

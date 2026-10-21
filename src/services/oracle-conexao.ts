@@ -533,19 +533,11 @@ function urlApiDeLinhas(items: ConexaoBancoOrds[]): string | null {
   return null;
 }
 
-/** URL da API REST: gravada no celular, .env, ou #API= em qualquer linha da conexao_banco. */
+/** URL da API REST: gravada no celular, #API= na ORDS, ou configuração do app. */
 export async function obterUrlApiCustos(): Promise<string> {
   const salva = await lerUrlApiSalva();
   if (salva) {
     return salva;
-  }
-  try {
-    const doEnv = obterUrlApiResolvida();
-    if (doEnv && /^https:\/\//i.test(doEnv) && !urlEhRedeLocal(doEnv)) {
-      return doEnv;
-    }
-  } catch {
-    /* .env sem URL — tenta #API= na ORDS */
   }
   try {
     const url = urlApiDeLinhas(await listarConexoes());
@@ -555,6 +547,11 @@ export async function obterUrlApiCustos(): Promise<string> {
     }
   } catch {
     /* ORDS 401 no APK (sem token) ou indisponível */
+  }
+  try {
+    return obterUrlApiResolvida();
+  } catch {
+    /* sem configuração utilizável */
   }
   throw new Error(mensagemSemUrlApi());
 }

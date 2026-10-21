@@ -1,5 +1,5 @@
 import { useFocusEffect, useRouter } from 'expo-router';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -22,6 +22,9 @@ import {
   consultarLancamentosAnaliseBiometrica,
   enviarLancamentosAnaliseBiometrica,
   excluirLancamentosAnaliseBiometrica,
+  chaveMotivoTch,
+  consultarMotivosTalhao,
+  codigosMotivoTchTalhao,
 } from '../src/services/analise-biometrica';
 import { obterCadastrosApontamento } from '../src/services/apontamento';
 import { colors } from '../src/theme/colors';
@@ -30,6 +33,7 @@ import type {
   ItemAnaliseBiometrica,
   LancamentoAnaliseBiometrica,
   PontoAnaliseBiometrica,
+  MotivoTchAnaliseBiometrica,
 } from '../src/types/analise-biometrica';
 import type { FazendaCadastro, TalhaoCadastro } from '../src/types/apontamento';
 
@@ -223,6 +227,7 @@ export default function AnaliseBiometricaScreen() {
   const [enviando, setEnviando] = useState(false);
   const [excluindoChave, setExcluindoChave] = useState<string | null>(null);
   const [erro, setErro] = useState<string | null>(null);
+  const [motivosGravados, setMotivosGravados] = useState<Awaited<ReturnType<typeof consultarMotivosTalhao>>>([]);
   const [lancamentos, setLancamentos] = useState<LancamentoAnaliseBiometrica[]>([]);
 
   const [data, setData] = useState(hojeBr);
@@ -234,6 +239,14 @@ export default function AnaliseBiometricaScreen() {
   const [ponto, setPonto] = useState<PontoAnaliseBiometrica | null>(null);
   const [variedade, setVariedade] = useState('');
   const [valores, setValores] = useState<Record<number, string>>({});
+  const [motivosPorTalhao, setMotivosPorTalhao] = useState<Record<string, MotivoTchAnaliseBiometrica[]>>({});
+  const [buscaMotivo, setBuscaMotivo] = useState('');
+  const contextoMotivo = { data, codFazenda: fazenda?.codFazenda ?? 0, codTalhao: talhao?.codTalhao ?? 0 };
+  const chaveMotivo = chaveMotivoTch(contextoMotivo);
+  const codigosRegistrados = codigosMotivoTchTalhao([...lancamentos, ...motivosGravados], contextoMotivo);
+  const motivosPendentes = motivosPorTalhao[chaveMotivo] ?? [];
+  const codigosSelecionados = [...new Set([...codigosRegistrados, ...motivosPendentes.map(motivo => motivo.codMotivo)])];
+  useEffect(() => { setBuscaMotivo(''); }, [chaveMotivo]);
 
   const talhoesFiltrados = useMemo(
     () => (fazenda ? talhoes.filter((talhaoItem) => talhaoItem.codFazenda === fazenda.codFazenda) : talhoes),
@@ -327,7 +340,9 @@ export default function AnaliseBiometricaScreen() {
     setCarregandoLancamentos(true);
     setErro(null);
     try {
-      setLancamentos(await consultarLancamentosAnaliseBiometrica());
+      const [linhas, motivos] = await Promise.all([consultarLancamentosAnaliseBiometrica(), consultarMotivosTalhao()]);
+      setLancamentos(linhas);
+      setMotivosGravados(motivos);
     } catch (falha) {
       setErro(falha instanceof Error ? falha.message : 'Erro ao carregar lançamentos biométricos.');
     } finally {
@@ -435,6 +450,10 @@ export default function AnaliseBiometricaScreen() {
       setErro('Selecione o talhão.');
       return;
     }
+    if (buscaMotivo.trim()) {
+      setErro('Selecione o motivo encontrado na lista ou limpe a busca antes de enviar.');
+      return;
+    }
     if (!pontoCodigo || pontoCodigo <= 0) {
       setErro('Informe o ponto da análise biométrica.');
       return;
@@ -470,6 +489,7 @@ export default function AnaliseBiometricaScreen() {
           variedade: variedade.trim(),
           valor: linha.valor ?? 0,
           usuario: usuarioLancamentoAtual,
+          codigosMotivoTch: codigosSelecionados,
         })),
       );
       Alert.alert('Lançamento enviado', `${itensComValor.length} item(ns) da análise biométrica gravado(s) na ORDS.`);
@@ -634,6 +654,34 @@ export default function AnaliseBiometricaScreen() {
               style={styles.input}
             />
           </View>
+
+          {fazenda && talhao && <View style={styles.campo}>
+            <Text style={styles.label}>Motivos de não atingimento do TCH</Text>
+            <Text style={styles.vazio}>Selecione os motivos aplicáveis. Cada motivo é informado uma vez por talhão e data.</Text>
+            {codigosSelecionados.map(codigo => {
+              const motivo = cadastros?.motivosTch.find(item => item.codMotivo === codigo);
+              const registrado = codigosRegistrados.includes(codigo);
+              return <Pressable key={codigo} disabled={registrado || enviando} onPress={() => setMotivosPorTalhao(atual => ({
+                ...atual, [chaveMotivo]: (atual[chaveMotivo] ?? []).filter(item => item.codMotivo !== codigo),
+              }))}>
+                <Text style={styles.selecionado}>{codigo} - {motivo?.descricao ?? `Motivo ${codigo}`} · {registrado ? 'Já informado' : 'Remover'}</Text>
+              </Pressable>;
+            })}
+            <Seletor
+              titulo="Adicionar motivo"
+              busca={buscaMotivo}
+              selecionado={null}
+              opcoes={(cadastros?.motivosTch ?? []).filter(motivo => !codigosSelecionados.includes(motivo.codMotivo))}
+              onBusca={setBuscaMotivo}
+              onSelecionar={motivo => {
+                setMotivosPorTalhao(atual => ({ ...atual, [chaveMotivo]: [...(atual[chaveMotivo] ?? []).filter(item => item.codMotivo !== motivo.codMotivo), motivo] }));
+                setBuscaMotivo('');
+              }}
+              rotulo={motivo => `${motivo.codMotivo} - ${motivo.descricao}`}
+              chave={motivo => String(motivo.codMotivo)}
+              vazio="Nenhum outro motivo disponível."
+            />
+          </View>}
         </View>
 
         <ActionButton

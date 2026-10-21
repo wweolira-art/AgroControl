@@ -9,5 +9,5 @@
     "allowImportingTsExtensions": true,
     "types": ["node"]
   },
-  "include": ["server/auth.ts"]
+  "include": ["server/auth.ts", "server/mao-de-obra.ts", "server/email-access.ts"]
 }
