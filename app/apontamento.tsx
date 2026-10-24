@@ -258,6 +258,7 @@ export default function ApontamentoScreen() {
   const [buscaFuncionario, setBuscaFuncionario] = useState('');
   const [buscaMeio, setBuscaMeio] = useState('');
   const [buscaMaterial, setBuscaMaterial] = useState('');
+  const [codigoTurma, setCodigoTurma] = useState('');
 
   const [fazenda, setFazenda] = useState<FazendaCadastro | null>(null);
   const [talhao, setTalhao] = useState<TalhaoCadastro | null>(null);
@@ -293,6 +294,14 @@ export default function ApontamentoScreen() {
     const lista = cadastros?.tiposOperacao?.filter((item) => item.tipoOperacao && item.descricao) ?? [];
     return lista.length > 0 ? lista : TIPOS_OPERACAO_ERP;
   }, [cadastros]);
+
+  const funcionariosDaTurma = useMemo(() => {
+    const codigo = Number(codigoTurma);
+    if (!codigoTurma || !Number.isInteger(codigo) || codigo <= 0) {
+      return [];
+    }
+    return (cadastros?.funcionarios ?? []).filter((item) => item.codTurma === codigo);
+  }, [cadastros, codigoTurma]);
 
   const listaMateriaisPronta = useMemo((): LinhaMaterial[] => {
     const lista = [...linhasMateriais];
@@ -717,7 +726,7 @@ export default function ApontamentoScreen() {
           exigirBusca
           onSelecionar={(item) => {
             setFazenda(item);
-            setBuscaFazenda(item.nome);
+            setBuscaFazenda('');
             setTalhao(null);
             setBuscaTalhao('');
           }}
@@ -781,11 +790,30 @@ export default function ApontamentoScreen() {
           </View>
         </View>
 
+        <View style={styles.campo}>
+          <Text style={styles.label}>Código da turma</Text>
+          <TextInput
+            value={codigoTurma}
+            onChangeText={(texto) => {
+              setCodigoTurma(texto.replace(/\D/g, ''));
+              setFuncionario(null);
+              setBuscaFuncionario('');
+            }}
+            keyboardType="number-pad"
+            placeholder="Digite o código da turma"
+            placeholderTextColor={colors.muted}
+            style={styles.input}
+          />
+          <Text style={styles.vazio}>
+            {codigoTurma ? `${funcionariosDaTurma.length} funcionário(s) encontrado(s).` : 'Informe a turma para listar os funcionários.'}
+          </Text>
+        </View>
+
         <Seletor
           titulo="Funcionário"
           valor={buscaFuncionario}
           onChangeText={setBuscaFuncionario}
-          opcoes={cadastros?.funcionarios ?? []}
+          opcoes={funcionariosDaTurma}
           selecionado={funcionario}
           exigirBusca
           onSelecionar={(item) => {
@@ -794,7 +822,7 @@ export default function ApontamentoScreen() {
           }}
           rotulo={(f) => `${f.nome} — ${f.codFuncionario}`}
           chave={(f) => String(f.codFuncionario)}
-          vazio={carregando ? 'Carregando funcionários…' : 'Nenhum funcionário ativo encontrado.'}
+          vazio={carregando ? 'Carregando funcionários…' : codigoTurma ? 'Nenhum funcionário nesta turma.' : 'Informe o código da turma.'}
           invalido={campoInvalido('funcionario')}
           onLayoutCampo={registrarCampo('funcionario')}
         />

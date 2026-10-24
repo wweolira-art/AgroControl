@@ -79,6 +79,7 @@ export interface OperacaoCadastro {
 
 export interface FuncionarioCadastro {
   codFuncionario: number;
+  codTurma: number | null;
   nome: string;
 }
 
@@ -209,6 +210,7 @@ SELECT TRIM(t.tipo_operacao) AS tipo_operacao,
 
 const CADASTRO_FUNCIONARIOS_SQL = `
 SELECT s.cdgfuncionario AS cod_funcionario,
+       s.cdgturma AS cod_turma,
        TRIM(s.cscfuncionario) AS nome
   FROM agricola.sga_funcionario s
  WHERE s.idnativo = 'S'
@@ -319,6 +321,7 @@ export async function listarCadastrosApontamento(): Promise<CadastrosApontamento
     funcionarios: funcRows
       .map((row) => ({
         codFuncionario: toNumber(rowVal(row, 'COD_FUNCIONARIO', 'cod_funcionario')) ?? 0,
+        codTurma: toNumber(rowVal(row, 'COD_TURMA', 'cod_turma')),
         nome: toStr(rowVal(row, 'NOME', 'nome')),
       }))
       .filter((f) => f.codFuncionario > 0 && f.nome),

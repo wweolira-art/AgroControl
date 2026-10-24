@@ -19,7 +19,12 @@ import { obterUrlApiCustos } from './oracle-conexao';
 
 function normalizarCadastros(data: Partial<CadastrosApontamento>): CadastrosApontamento {
   return {
-    turmas: Array.isArray(data.turmas) ? data.turmas : undefined,
+    turmas: Array.isArray(data.turmas)
+      ? data.turmas.map((turma) => ({
+          ...turma,
+          descricao: typeof turma.descricao === 'string' ? turma.descricao.trim() : '',
+        }))
+      : undefined,
     fazendas: Array.isArray(data.fazendas) ? data.fazendas : [],
     talhoes: Array.isArray(data.talhoes) ? data.talhoes : [],
     materiais: Array.isArray(data.materiais) ? data.materiais : [],

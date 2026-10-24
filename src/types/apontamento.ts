@@ -30,6 +30,7 @@ export interface OperacaoCadastro {
 
 export interface FuncionarioCadastro {
   codFuncionario: number;
+  codTurma?: number | null;
   nome: string;
 }
 
@@ -49,7 +50,11 @@ export const TIPOS_OPERACAO_ERP: TipoOperacaoCadastro[] = [
   { tipoOperacao: 'M', descricao: 'MECANIZADO' },
 ];
 
-export interface TurmaCadastro { codAgenciador: number; codGrupoempresa: number }
+export interface TurmaCadastro {
+  codAgenciador: number;
+  codGrupoempresa: number;
+  descricao: string;
+}
 
 export interface CadastrosApontamento {
   turmas?: TurmaCadastro[];
